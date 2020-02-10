@@ -1,6 +1,6 @@
 const loaderUtils = require('loader-utils');
 const babel = require('@babel/core');
-const elmCssModulesPlugin = require('elm-css-modules-plugin');
+const elmCssModulesPlugin = require('@symbaloo/elm-css-modules-plugin');
 
 const loader = function(source, inputSourceMap) {
   this.cacheable && this.cacheable(); // for Webpack 1.x compatibility
