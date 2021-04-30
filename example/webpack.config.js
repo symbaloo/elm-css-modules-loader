@@ -13,16 +13,13 @@ module.exports = {
         test: /\.elm$/,
         use: [
           {
-            loader: 'elm-css-modules-loader',
+            loader: '@symbaloo/elm-css-modules-loader',
             options: {
               package: 'author/project',
             },
           },
           {
             loader: 'elm-webpack-loader',
-            options: {
-              optimize: true
-            }
           },
         ],
       },

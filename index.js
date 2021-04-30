@@ -1,10 +1,9 @@
+// @ts-check
+
 const loaderUtils = require('loader-utils');
-const babel = require('@babel/core');
-const elmCssModulesPlugin = require('@symbaloo/elm-css-modules-plugin');
 
-const loader = function(source, inputSourceMap) {
-  this.cacheable && this.cacheable(); // for Webpack 1.x compatibility
-
+const loader = function (source) {
+  /** @type { { module?: string; tagger?: string; package?: string; localPath?: string; } } */
   const config = loaderUtils.getOptions(this) || {};
 
   config.module = config['module'] || 'CssModules';
@@ -12,45 +11,46 @@ const loader = function(source, inputSourceMap) {
 
   const packageName = config['package'] || 'cultureamp/elm-css-modules-loader';
   const taggerName = [
+    '',
     packageName.replace(/-/g, '_').replace(/\//g, '$'),
     config.module.replace(/\./g, '_'),
     config.tagger,
   ].join('$');
 
-  const transformerOptions = {
-    taggerName: taggerName,
-    localPath: config.localPath,
-  };
-
-  const webpackRemainingChain = loaderUtils
-    .getRemainingRequest(this)
-    .split('!');
-  const filename = webpackRemainingChain[webpackRemainingChain.length - 1];
-  const babelOptions = {
-    inputSourceMap: inputSourceMap,
-    sourceRoot: process.cwd(),
-    filename: filename,
-    compact: false,
-    babelrc: false,
-  };
-
-  const result = transform(source, this, transformerOptions, babelOptions);
-
-  this.callback(null, result.code, result.map);
+  return transform(source, taggerName);
 };
 
-function transform(source, loaderContext, transformerOptions, babelOptions) {
-  babelOptions.plugins = [
-    [elmCssModulesPlugin, { taggerName: transformerOptions.taggerName }],
-  ];
+/**
+ * @param {string} source
+ * @param {string} taggerName
+ * @returns {string}
+ */
+function transform(source, taggerName) {
+  const escapedTaggerName = taggerName.replace(/\$/g, '\\$');
+  const moduleNameCapture = "'([a-zA-Z-_./]+)'";
+  const expectedClassRules = "{[a-zA-Z0-9:, ']*}";
 
-  const { code, map } = babel.transform(source, babelOptions);
+  const regexp = regexpForFunctionCall('A2', [
+    escapedTaggerName,
+    moduleNameCapture,
+    expectedClassRules,
+  ]);
+  return source.replace(regexp, 'A2(' + taggerName + ", '$1', require('$1'));");
+}
 
-  if (map && (!map.sourcesContent || !map.sourcesContent.length)) {
-    map.sourcesContent = [source];
+function regexpForFunctionCall(fnName, args) {
+  const optionalWhitespace = '\\s*';
+  const argumentParts = [];
+  for (let i = 0; i < args.length; i++) {
+    argumentParts.push(optionalWhitespace);
+    argumentParts.push(args[i]);
+    if (i < args.length - 1) {
+      argumentParts.push(',');
+    }
+    argumentParts.push(optionalWhitespace);
   }
-
-  return { code, map };
+  let parts = [fnName, '\\(', ...argumentParts, '\\)'];
+  return new RegExp(parts.join(''), 'g');
 }
 
 module.exports = loader;
